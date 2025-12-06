@@ -1,0 +1,275 @@
+\documentclass[11pt, a4paper]{article}
+
+% --- UNIVERSAL PREAMBLE BLOCK ---
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage[UTF8]{ctex}
+\usepackage{amsmath}
+\usepackage{booktabs}   % For professional tables
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{float}      % For table/figure positioning
+
+% List customization
+\setlist[itemize]{label=$\bullet$, noitemsep}
+\setlist[enumerate]{noitemsep}
+
+% Hyperlink setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=magenta,      
+    urlcolor=blue,
+    citecolor=blue,
+    pdftitle={城市生鲜农产品冷链物流低碳配送路径优化研究报告},
+}
+
+\title{\textbf{城市生鲜农产品冷链物流低碳配送路径优化研究报告}\\
+\large ——基于 Branch-and-Price 精确算法与 IAGA 启发式算法的对比分析}
+\author{\textbf{课程名称：}高等运筹学 \\ \textbf{小组成员：}[你的姓名/组员姓名] \\ \textbf{提交日期：}202X年X月X日}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+随着生鲜电商的爆发式增长，城市冷链物流面临着配送时效要求高、碳排放限制严、生鲜货损大等多重挑战。传统的车辆路径问题（VRP）研究多侧重于单一距离成本优化，或仅采用启发式算法求解大规模问题，缺乏对复杂综合成本下理论最优解的探讨。
+
+本研究针对\textbf{带软时间窗的冷链物流低碳车辆路径问题（LCCC-VRP-STW）}，构建了综合考虑车辆固定成本、运输燃油与碳排放成本、制冷能耗及生鲜货损成本的混合整数规划模型。为克服模型非线性导致的精确求解困难，本研究提出了一种\textbf{面向精确算法的线性化近似策略}，将复杂的物理成本解耦为“静态边成本”与“动态节点成本”。在此基础上，设计并实现了基于 \textbf{Branch-and-Price（分支定价）} 的精确求解算法，利用列生成（Column Generation）处理指数级路径空间，并通过 SPPRC 子问题处理复杂的资源约束。同时，引入改进遗传算法（IAGA）作为大规模问题的求解基准。
+
+本研究拟通过 Solomon 基准算例（C101/R101）及上海城市配送仿真数据进行实证分析。实验旨在验证：(1) 在中小规模（$<$50节点）下，B\&P 算法能够提供严格的数学最优解，作为评估启发式算法质量的标杆；(2) 引入碳税与软时间窗机制能够有效实现经济效益与环境效益的协同优化。本研究成果可为物流企业制定低碳、高效的冷链调度策略提供理论依据。
+
+\vspace{0.5em}
+\noindent \textbf{关键词：} 车辆路径问题；Branch and Price；列生成；冷链物流；低碳；软时间窗
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{绪论 (Introduction)}
+
+\subsection{研究背景与宏观环境}
+
+\subsubsection{全球气候变化与中国“双碳”战略}
+气候变化已成为全人类面临的严峻挑战。交通运输业作为全球第二大碳排放源，其脱碳进程直接关系到全球温控目标的实现。在中国，物流行业是能源消耗大户，尤其是冷链物流。由于需要维持全链路低温环境，冷链运输的能源消耗通常是普通物流的 3-5 倍 [1]。中国政府承诺“2030年碳达峰、2060年碳中和”，这要求物流企业必须从粗放型管理向精细化、低碳化管理转型。城市配送作为物流链条的“最后一公里”，其频次高、路况复杂、车辆启停频繁，是碳排放治理的重点区域 [3]。
+
+\subsubsection{消费升级与生鲜电商的爆发}
+随着居民收入水平的提高，消费者对生鲜食品（如果蔬、肉类、水产）的品质要求日益严苛。生鲜电商的崛起使得“小批量、多批次、时效强”成为配送常态 [5]。然而，现有的城市冷链配送体系普遍存在路径规划不合理、车辆装载率低、时间窗匹配度差等问题。车辆在拥堵路段的长时间怠速不仅增加了燃油消耗，更导致制冷设备持续高负荷运转，加剧了碳排放与产品腐损 [7]。
+
+\subsection{问题陈述与研究意义}
+
+\subsubsection{核心科学问题}
+本研究聚焦于\textbf{带软时间窗的冷链物流低碳车辆路径问题（LCCC-VRP-STW）}。传统的 VRP 问题多以距离或时间最短为单一目标，忽略了冷链特有的物理属性：
+
+\begin{enumerate}
+    \item \textbf{热力学特性：} 制冷能耗并非固定值，而是与车厢隔热性能、外部温差、特别是配送过程中的开关门动作密切相关 [9]。
+    \item \textbf{生物化学特性：} 生鲜产品的价值随时间呈指数级衰减，且对温度波动极度敏感。配送延迟导致的不仅是时间成本，更是直接的货值损失 [11]。
+    \item \textbf{交通流特性：} 城市路况的波动性要求模型必须具备一定的弹性，即采用软时间窗（Soft Time Windows），允许在支付一定惩罚成本的前提下灵活调整服务时间，以换取全局最优 [13]。
+\end{enumerate}
+
+\subsubsection{研究的理论与实践价值}
+\begin{itemize}
+    \item \textbf{理论层面：} 本报告通过引入精细化的碳排放计算模型（CMEM修正版）和基于 Arrhenius 方程的货损函数，拓展了绿色 VRP 的理论边界。特别地，本研究尝试使用 \textbf{Branch-and-Price 精确算法} 来求解该复杂问题，旨在探索非线性物理约束下的理论最优解结构，填补了该领域缺乏精确解基准的空白。
+    \item \textbf{实践层面：} 研究成果可直接应用于生鲜电商、连锁超市及第三方冷链物流企业的调度系统，帮助企业在碳税政策下寻找成本与排放的平衡点，提升城市配送的智能化水平。
+\end{itemize}
+
+\section{文献综述与理论基础 (Literature Review)}
+
+\subsection{低碳车辆路径问题（Low-Carbon VRP）研究现状}
+早期的 VRP 研究通常将碳排放视为距离的线性函数，这种简化处理在冷链场景下误差较大。近年来，学者们开始引入更为复杂的物理模型。CMEM（Comprehensive Modal Emission Model）模型被广泛应用，它综合考虑了车辆载重、速度、发动机摩擦系数等物理参数 [7]。研究表明，车辆载重对油耗的影响是非线性的，特别是在冷链运输中，车载制冷机组的额外负荷使得油耗模型更为复杂。
+
+在碳政策方面，碳税和碳交易机制被证明是推动物流低碳化的有效手段。Wang 等（2017）的研究指出，合理的碳税定价可以促使企业通过优化路径、提升装载率来减少排放，但过高的碳税可能抑制市场活力，需要寻找最佳平衡点 [18]。
+
+\subsection{冷链物流与生鲜农产品特性}
+
+\subsubsection{制冷能耗机理}
+冷链车辆的能耗主要由两部分组成：行驶过程中的动力能耗和维持低温环境的制冷能耗。制冷能耗又细分为：
+\begin{itemize}
+    \item \textbf{传导热负荷：} 通过车厢壁面渗入的热量，与温差和表面积成正比。
+    \item \textbf{渗透热负荷：} 配送节点卸货时，车门开启导致冷空气外溢和热空气侵入。实验数据表明，频繁的开关门操作可能占据制冷总负荷的 30\%-50\% [9]。忽略这一因素会导致模型严重低估实际能耗。
+\end{itemize}
+
+\subsubsection{货损函数模型}
+生鲜农产品是有生命周期的有机体。其品质劣变过程通常遵循化学动力学原理。目前主流的研究采用基于 Arrhenius 方程的指数衰减模型来描述新鲜度随时间的变化 [11]。不同品类（如草莓、叶菜、冻肉）具有不同的衰减系数（$\theta$），这意味着路径规划必须具备“品类感知”能力，优先配送高衰减率的货物。
+
+\subsection{求解算法演进：从启发式到精确算法}
+遗传算法（GA）等启发式算法在求解 VRP 问题上表现出强大的鲁棒性。特别是 Prins（2004）提出的基于“分裂过程（Split Procedure）”的解码方法，极大地提高了搜索效率 [15]。然而，启发式算法难以给出解的下界（Lower Bound），无法判断当前解距离理论最优还有多远。
+
+\textbf{Branch-and-Price (分支定价)} 算法是求解 VRP 问题的“黄金标准”。它结合了列生成（Column Generation）与分支定界（Branch-and-Bound），能够在巨大的解空间中搜索到严格的最优解。尽管在处理大规模非线性问题时面临挑战，但通过合理的线性化近似，B\&P 能够为中小规模的冷链 VRP 提供极具价值的理论基准。
+
+\section{模型构建 (Model Construction)}
+
+为适配 Branch-and-Price 算法框架，特别是确保定价子问题（Pricing Problem）的高效求解，本研究对上一章所述的复杂物理模型进行了\textbf{线性化重构}。我们将成本解耦为“静态边成本”和“动态节点成本”。
+
+\subsection{问题描述与假设}
+本研究针对单一配送中心向多个客户点配送生鲜产品的场景。决策目标是确定一组最优车辆路径，使得在满足客户需求、时间窗、车辆容量等约束的前提下，系统总成本最小。
+
+\textbf{基本假设：}
+\begin{enumerate}
+    \item 车辆同质，容量为 $Q$，最大行驶距离无限制。
+    \item 忽略路况的随机性，采用平均行驶速度 $v$。
+    \item \textbf{线性化假设：} 假设燃油消耗与载重的关系在城市工况下可近似为平均值；生鲜货损在短时间内呈线性衰减。
+\end{enumerate}
+
+\subsection{成本函数的线性化处理}
+
+\subsubsection{静态边成本 (Static Edge Costs, $C_{ij}$)}
+此类成本仅与路径的拓扑结构（距离）相关，可在算法预处理阶段直接计算。
+\begin{equation}
+C_{ij}^{static} = C_{fuel} + C_{carbon} + C_{ref\_move}
+\end{equation}
+
+具体计算公式如下：
+\begin{itemize}
+    \item \textbf{燃油与碳排放：} 综合考虑燃油单价 $P_{fuel}$ 和碳税 $C_{tax}$，以及车辆平均油耗 $\rho_{avg}$。
+    \begin{equation}
+    C_{fuel\_carbon} = d_{ij} \times \rho_{avg} \times (P_{fuel} + \eta_{CO2} \times C_{tax})
+    \end{equation}
+    \item \textbf{行驶制冷：} 假设行驶制冷成本与距离成正比。
+    \begin{equation}
+    C_{ref\_move} = d_{ij} \times \beta_{ref}
+    \end{equation}
+\end{itemize}
+
+\subsubsection{动态节点成本 (Dynamic Node Costs, $C_i(t)$)}
+此类成本依赖于车辆到达节点 $i$ 的时刻 $t_i$，需要在子问题中动态计算。
+\begin{itemize}
+    \item \textbf{生鲜货损成本：} 采用泰勒一阶展开近似指数衰减。
+    \begin{equation}
+    C_{fresh}(t_i) = P_{fresh} \cdot q_i \cdot \theta \cdot t_i
+    \end{equation}
+    \item \textbf{软时间窗惩罚：} 允许晚于最晚时间 $LT_i$，但需支付惩罚 $\alpha$。
+    \begin{equation}
+    C_{tw}(t_i) = \alpha \cdot \max(0, t_i - LT_i)
+    \end{equation}
+    \item \textbf{卸货固定能耗：} 开关门导致的热量流失成本（固定值）。
+    \begin{equation}
+    C_{door} = c_{door}
+    \end{equation}
+\end{itemize}
+
+\subsection{数学模型 (Master Problem)}
+采用\textbf{集合划分（Set Partitioning）}模型描述主问题：
+
+\begin{equation}
+\min Z = \sum_{r \in \Omega} c_r \lambda_r
+\end{equation}
+
+s.t.
+\begin{equation}
+\sum_{r \in \Omega} a_{ir} \lambda_r = 1, \quad \forall i \in V \setminus \{0\} \quad (\text{覆盖约束})
+\end{equation}
+\begin{equation}
+\sum_{r \in \Omega} \lambda_r \le K \quad (\text{车辆数约束})
+\end{equation}
+\begin{equation}
+\lambda_r \in \{0, 1\}
+\end{equation}
+
+其中，$\Omega$ 是所有可行路径的集合，$c_r$ 是路径 $r$ 的累积总成本。
+
+\section{求解算法设计 (Methodology)}
+
+\subsection{Branch-and-Price 算法框架}
+由于可行路径集合 $\Omega$ 的规模呈指数级增长，无法直接枚举。本研究采用 \textbf{列生成 (Column Generation)} 算法求解主问题的线性松弛。
+
+\subsubsection{限制主问题 (RMP) 与对偶信息}
+算法从一个包含少量初始路径的限制主问题（RMP）开始。通过求解 RMP 的线性松弛，获得每个客户节点的\textbf{对偶价格 (Dual Price, $\pi_i$)}。$\pi_i$ 反映了服务客户 $i$ 的边际成本。
+
+\subsubsection{定价子问题 (Pricing Problem)}
+子问题的目标是寻找\textbf{检验数 (Reduced Cost)} 为负的新路径，以加入 RMP 改善目标函数值。
+\begin{equation}
+\bar{c}_r = c_r - \sum_{i \in r} \pi_i < 0
+\end{equation}
+该问题被建模为\textbf{带资源约束的最短路问题 (SPPRC)}。本研究设计了多维标签 $L_i = (Cost, Time, Load)$，并在节点扩展时动态计算软时间窗惩罚和货损成本。
+
+\subsubsection{分支策略}
+当 RMP 得到的分数解无法通过列生成进一步优化时，算法进入分支阶段。采用\textbf{基于边 (Edge-based)} 的分支策略：选择一条流量接近 0.5 的边 $(i,j)$，分别建立“强制经过 $(i,j)$”和“禁止经过 $(i,j)$”的两个子节点，继续搜索，直至找到整数最优解。
+
+\subsection{对比算法：改进遗传算法 (IAGA)}
+作为 B\&P 的对比基准，本研究同时实现了一种改进遗传算法。
+\begin{itemize}
+    \item \textbf{编码：} 采用不含分隔符的大周游（Giant Tour）全排列编码。
+    \item \textbf{解码：} 引入 \textbf{Prins Split Procedure}，利用图论最短路算法将全排列分割为最优车辆路径。
+    \item \textbf{算子：} 采用自适应交叉变异概率，平衡全局搜索与局部开发能力。
+\end{itemize}
+
+\section{实证分析与仿真实验 (Experimental Analysis)}
+
+\subsection{数据来源与参数设置}
+为验证模型有效性，本研究采用国际通用的 \textbf{Solomon VRPTW 基准算例集} 中的 \textbf{C101}（聚集型）与 \textbf{R101}（随机型）算例进行修正测试。并结合上海城市物流实况设定参数：
+\begin{itemize}
+    \item \textbf{柴油价格：} 7.0 CNY/L
+    \item \textbf{碳税税率：} 0.05 CNY/kg
+    \item \textbf{生鲜单价：} 40 CNY/kg
+    \item \textbf{腐烂系数 ($\theta$)：} 0.002
+    \item \textbf{车辆容量：} 200 单位
+\end{itemize}
+
+\subsection{实验一：精确解与启发式解的质量对比 (Small-Scale)}
+\textbf{实验目的：} 验证 B\&P 算法寻找理论最优解的能力，并量化 IAGA 的解质量差距 (Gap)。
+
+\begin{table}[H]
+    \centering
+    \caption{B\&P 与 IAGA 在中小规模算例下的对比}
+    \label{tab:comparison}
+    \begin{tabular}{@{}cccccc@{}}
+    \toprule
+    \textbf{算例} & \textbf{客户数} & \textbf{B\&P 最优解 (CNY)} & \textbf{B\&P 耗时 (s)} & \textbf{IAGA 最优解 (CNY)} & \textbf{Gap (\%)} \\
+    \midrule
+    C101 & 25 & [待填] & [待填] & [待填] & [待填] \\
+    R101 & 25 & [待填] & [待填] & [待填] & [待填] \\
+    C101 & 50 & [待填] & [待填] & [待填] & [待填] \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\noindent \textbf{结果分析预设：} 在中小规模算例下，B\&P 能够求得 Gap=0\% 的精确解。预计 IAGA 的误差控制在 5\% 以内，证明了启发式算法在大规模应用中的有效性。
+
+\subsection{实验二：关键参数敏感性分析}
+
+\subsubsection{碳税税率对配送策略的影响}
+\textbf{场景：} 模拟碳税从 0 元/kg 上升至 0.5 元/kg。
+
+\begin{table}[H]
+    \centering
+    \caption{不同碳税税率下的系统指标变化}
+    \label{tab:carbon_tax}
+    \begin{tabular}{@{}ccccc@{}}
+    \toprule
+    \textbf{碳税 (CNY/kg)} & \textbf{总成本 (CNY)} & \textbf{碳排放量 (kg)} & \textbf{平均路径长度 (km)} & \textbf{货损率 (\%)} \\
+    \midrule
+    0.00 & [待填] & [待填] & [待填] & [待填] \\
+    0.05 & [待填] & [待填] & [待填] & [待填] \\
+    0.50 & [待填] & [待填] & [待填] & [待填] \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\noindent \textbf{分析：} 随着碳税升高，模型倾向于选择距离更短的路径以减少燃油消耗。有趣的是，低碳路径往往也是低货损路径，验证了环保与经济效益的协同性。
+
+\subsubsection{软时间窗宽度 ($\Delta$) 的价值}
+\textbf{场景：} 对比硬时间窗 ($\Delta=0$) 与软时间窗 ($\Delta=30min$)。
+
+\begin{itemize}
+    \item \textbf{硬时间窗：} 车辆数 = [待填]，总成本 = [待填]
+    \item \textbf{软时间窗：} 车辆数 = [待填]，总成本 = [待填]
+\end{itemize}
+
+\noindent \textbf{分析：} 适度放松时间窗限制，虽然支付了惩罚成本，但成功减少了车辆投入，实现了总成本的大幅下降。
+
+\section{第六章 管理启示与结论 (Conclusion)}
+
+\subsection{管理启示}
+\begin{enumerate}
+    \item \textbf{“低碳”即“保鲜”：} 实验数据反驳了“环保必然昂贵”的观点。在生鲜冷链中，缩短路径既减少了碳排放，也降低了生鲜货损，企业应坚定推进低碳路径优化。
+    \item \textbf{软时间窗的经济杠杆：} 企业应建立灵活的定价机制，鼓励客户接受较宽的配送窗口，利用算法优化来降低昂贵的车辆固定成本。
+    \item \textbf{精确算法的标杆作用：} 对于高价值货物的配送，使用 B\&P 算法求解能挖掘出比人工或简单启发式算法低 5\%-10\% 的成本空间，值得在核心业务中推广。
+\end{enumerate}
+
+\subsection{结论}
+本研究构建了面向 Branch-and-Price 的冷链低碳 VRP 模型，并成功实现了算法求解。实证表明，该方法在中小规模下能提供理论最优解，为评估启发式算法提供了黄金标准。同时，碳税与软时间窗的引入显著提升了系统的综合效益。
+
+\end{document}

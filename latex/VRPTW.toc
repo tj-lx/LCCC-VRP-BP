@@ -1,0 +1,34 @@
+\contentsline {section}{\numberline {1}绪论 (Introduction)}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}研究背景与宏观环境}{3}{subsection.1.1}%
+\contentsline {subsubsection}{\numberline {1.1.1}全球气候变化与中国“双碳”战略}{3}{subsubsection.1.1.1}%
+\contentsline {subsubsection}{\numberline {1.1.2}消费升级与生鲜电商的爆发}{3}{subsubsection.1.1.2}%
+\contentsline {subsection}{\numberline {1.2}问题陈述与研究意义}{3}{subsection.1.2}%
+\contentsline {subsubsection}{\numberline {1.2.1}核心科学问题}{3}{subsubsection.1.2.1}%
+\contentsline {subsubsection}{\numberline {1.2.2}研究的理论与实践价值}{3}{subsubsection.1.2.2}%
+\contentsline {section}{\numberline {2}文献综述与理论基础 (Literature Review)}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}低碳车辆路径问题（Low-Carbon VRP）研究现状}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}冷链物流与生鲜农产品特性}{4}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}制冷能耗机理}{4}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}货损函数模型}{4}{subsubsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.3}求解算法演进：从启发式到精确算法}{4}{subsection.2.3}%
+\contentsline {section}{\numberline {3}模型构建 (Model Construction)}{4}{section.3}%
+\contentsline {subsection}{\numberline {3.1}问题描述与假设}{5}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}成本函数的线性化处理}{5}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}静态边成本 (Static Edge Costs, $C_{ij}$)}{5}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}动态节点成本 (Dynamic Node Costs, $C_i(t)$)}{5}{subsubsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.3}数学模型 (Master Problem)}{6}{subsection.3.3}%
+\contentsline {section}{\numberline {4}求解算法设计 (Methodology)}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Branch-and-Price 算法框架}{6}{subsection.4.1}%
+\contentsline {subsubsection}{\numberline {4.1.1}限制主问题 (RMP) 与对偶信息}{6}{subsubsection.4.1.1}%
+\contentsline {subsubsection}{\numberline {4.1.2}定价子问题 (Pricing Problem)}{6}{subsubsection.4.1.2}%
+\contentsline {subsubsection}{\numberline {4.1.3}分支策略}{6}{subsubsection.4.1.3}%
+\contentsline {subsection}{\numberline {4.2}对比算法：改进遗传算法 (IAGA)}{7}{subsection.4.2}%
+\contentsline {section}{\numberline {5}实证分析与仿真实验 (Experimental Analysis)}{7}{section.5}%
+\contentsline {subsection}{\numberline {5.1}数据来源与参数设置}{7}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}实验一：精确解与启发式解的质量对比 (Small-Scale)}{7}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}实验二：关键参数敏感性分析}{7}{subsection.5.3}%
+\contentsline {subsubsection}{\numberline {5.3.1}碳税税率对配送策略的影响}{7}{subsubsection.5.3.1}%
+\contentsline {subsubsection}{\numberline {5.3.2}软时间窗宽度 ($\Delta $) 的价值}{8}{subsubsection.5.3.2}%
+\contentsline {section}{\numberline {6}第六章 管理启示与结论 (Conclusion)}{8}{section.6}%
+\contentsline {subsection}{\numberline {6.1}管理启示}{8}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}结论}{8}{subsection.6.2}%
