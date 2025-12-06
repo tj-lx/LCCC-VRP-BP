@@ -132,6 +132,4 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# Project specific output
-output/
-fig/
+
