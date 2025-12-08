@@ -121,8 +121,7 @@ def run_scale_analysis():
         os.makedirs("output")
     
     # Scales to test: 25, 50, 100, 200
-    # Note: 200 scale requires longer runtime
-    scales = [25, 50, 100]
+    scales = [25, 50, 100, 200]
     
     print("=== Experiment 1: Scale Analysis (B&P vs GA) on C110_1 ===")
     
