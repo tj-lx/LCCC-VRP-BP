@@ -2,39 +2,18 @@ import numpy as np
 import time
 import os
 from branchBound import BranchAndBound
+from heuristicGA import GeneticAlgorithm
 from paramsVRP import ParamsVRP
 from route import Route
 from solVisualization import solVis
 
-def run_scale_experiment(datasetPath, num_customers, label="", save_fig_path=None):
-    # Initialize
-    bp = BranchAndBound()
-    user_param = ParamsVRP()
-    # Limit customers using the new feature in init_params
-    user_param.init_params(datasetPath, max_customers=num_customers)
-    
-    # Initialize Routes
-    init_routes = []
-    for i in range(user_param.nbclients - 2):
-        path = [0, i + 1, user_param.nbclients - 1]
-        route_cost = user_param.calculate_actual_cost(path)
-        route = Route(path=path, cost=route_cost, Q=1.0)
-        init_routes.append(route)
-    best_routes = []
-
-    # Run B&P
-    start_time = time.time()
-    bp.bb_node(user_param, init_routes, None, best_routes, 0)
-    end_time = time.time()
-    sol_time = end_time - start_time
-    
-    # Collect Metrics
+def calculate_metrics(user_param, routes, solve_time):
     total_cost = 0
     total_dist = 0
     total_emission = 0 
     total_fresh_loss = 0
     
-    for route in best_routes:
+    for route in routes:
         path = route.get_path()
         total_cost += route.get_cost()
         
@@ -45,7 +24,7 @@ def run_scale_experiment(datasetPath, num_customers, label="", save_fig_path=Non
             j = path[k+1]
             
             d_ij = user_param.dist[i][j]
-            # Check for invalid distance (verybig) - same fix as before
+            # Check for invalid distance (verybig)
             if d_ij >= user_param.verybig / 100:
                 d_ij = user_param.dist_base[i][j]
                 
@@ -71,20 +50,67 @@ def run_scale_experiment(datasetPath, num_customers, label="", save_fig_path=Non
                 total_fresh_loss += freshness_cost
 
     # Avg Route Length
-    avg_dist = total_dist / len(best_routes) if len(best_routes) > 0 else 0
+    avg_dist = total_dist / len(routes) if len(routes) > 0 else 0
     
-    # Visualization
-    if save_fig_path:
-        dataset_name_with_params = f"C110_1\n(N={num_customers})"
-        solVis(user_param, best_routes, sol_time, total_cost, dataset_name_with_params, POPOUT=False, save_path=save_fig_path)
+    return {
+        "total_cost": total_cost,
+        "time_sec": solve_time,
+        "emission": total_emission,
+        "num_vehicles": len(routes),
+        "avg_dist": avg_dist
+    }
+
+def run_scale_experiment(datasetPath, num_customers, label="", save_fig_base=None):
+    # Initialize Params
+    user_param = ParamsVRP()
+    user_param.init_params(datasetPath, max_customers=num_customers)
+    
+    # --- Run B&P ---
+    print(f"  > Running B&P for N={num_customers}...")
+    bp = BranchAndBound()
+    
+    # Initialize Routes for B&P
+    init_routes = []
+    for i in range(user_param.nbclients - 2):
+        path = [0, i + 1, user_param.nbclients - 1]
+        route_cost = user_param.calculate_actual_cost(path)
+        route = Route(path=path, cost=route_cost, Q=1.0)
+        init_routes.append(route)
+    bp_best_routes = []
+
+    start_time = time.time()
+    bp.bb_node(user_param, init_routes, None, bp_best_routes, 0)
+    end_time = time.time()
+    bp_time = end_time - start_time
+    
+    bp_metrics = calculate_metrics(user_param, bp_best_routes, bp_time)
+    
+    if save_fig_base:
+        dataset_name_bp = f"C110_1 (B&P)\n(N={num_customers})"
+        solVis(user_param, bp_best_routes, bp_time, bp_metrics['total_cost'], 
+               dataset_name_bp, POPOUT=False, save_path=f"{save_fig_base}_BP.png")
+
+    # --- Run GA ---
+    print(f"  > Running GA for N={num_customers}...")
+    # GA parameters can be tuned here if needed. Using defaults.
+    # For larger scales, maybe increase generations/pop_size slightly?
+    # Keeping defaults for fair comparison baseline.
+    ga = GeneticAlgorithm(user_param, pop_size=100, generations=100)
+    
+    ga_routes, ga_cost_raw, ga_time = ga.run()
+    # Note: ga_routes returned by GA.run() are Route objects.
+    
+    ga_metrics = calculate_metrics(user_param, ga_routes, ga_time)
+    
+    if save_fig_base:
+        dataset_name_ga = f"C110_1 (GA)\n(N={num_customers})"
+        solVis(user_param, ga_routes, ga_time, ga_metrics['total_cost'], 
+               dataset_name_ga, POPOUT=False, save_path=f"{save_fig_base}_GA.png")
     
     return {
         "scale": num_customers,
-        "total_cost": total_cost,
-        "time_sec": sol_time,
-        "emission": total_emission,
-        "num_vehicles": len(best_routes),
-        "avg_dist": avg_dist
+        "bp": bp_metrics,
+        "ga": ga_metrics
     }
 
 def run_scale_analysis():
@@ -95,43 +121,53 @@ def run_scale_analysis():
         os.makedirs("output")
     
     # Scales to test: 25, 50, 100, 200
-    # Note: C110_1 might not have 200 customers. Usually Solomon has 100.
-    # If 200 is requested but file only has 100, init_params will handle it (min logic).
-    scales = [25, 50, 100, 200]
-    # Re-run only N=100 for visualization fix
-    # scales = [100]
-    # Re-run only N=50 for visualization fix
-    # scales = [50]
+    # Note: 200 scale requires longer runtime
+    scales = [25, 50, 100]
     
-    print("=== Experiment 1: Scale Analysis on C110_1 ===")
+    print("=== Experiment 1: Scale Analysis (B&P vs GA) on C110_1 ===")
     
     for n in scales:
         print(f"Running for N = {n} customers...")
-        fig_path = f"output/Scale_N{n}.png"
+        fig_base = f"output/Scale_N{n}"
         
         try:
-            res = run_scale_experiment(dataset, num_customers=n, label=f"N={n}", save_fig_path=fig_path)
+            res = run_scale_experiment(dataset, num_customers=n, label=f"N={n}", save_fig_base=fig_base)
             results.append(res)
-            print(f"Done. Cost={res['total_cost']:.2f}, Time={res['time_sec']:.2f}s")
+            print(f"Done N={n}. B&P Cost={res['bp']['total_cost']:.2f}, GA Cost={res['ga']['total_cost']:.2f}")
         except Exception as e:
             print(f"Failed for N={n}: {e}")
+            import traceback
+            traceback.print_exc()
 
     # Output Table
-    print("\n\n====== Scale Experiment Results Summary ======")
-    header = f"{'Scale (N)':<10} | {'Cost':<10} | {'Time(s)':<10} | {'Emission(kg)':<12} | {'Vehicles':<8} | {'Avg Dist':<10}"
+    print("\n\n====== Scale Experiment Results Summary (B&P vs GA) ======")
+    # Format: Scale | Method | Cost | Time | Emission | Vehicles
+    header = f"{'Scale':<6} | {'Method':<6} | {'Cost':<10} | {'Time(s)':<10} | {'Emission':<10} | {'Vehicles':<8} | {'Avg Dist':<10}"
     print(header)
-    print("-" * 75)
+    print("-" * 80)
     
-    output_file = "output/scale_results.txt"
+    output_file = "output/scale_results_comparison.txt"
     with open(output_file, "w", encoding="utf-8") as f:
-        f.write("====== Scale Experiment Results Summary ======\n")
+        f.write("====== Scale Experiment Results Summary (B&P vs GA) ======\n")
         f.write(header + "\n")
-        f.write("-" * 75 + "\n")
+        f.write("-" * 80 + "\n")
         
         for r in results:
-            line = f"{r['scale']:<10} | {r['total_cost']:<10.2f} | {r['time_sec']:<10.2f} | {r['emission']:<12.2f} | {r['num_vehicles']:<8} | {r['avg_dist']:<10.2f}"
-            print(line)
-            f.write(line + "\n")
+            # Print B&P row
+            bp = r['bp']
+            line_bp = f"{r['scale']:<6} | {'B&P':<6} | {bp['total_cost']:<10.2f} | {bp['time_sec']:<10.2f} | {bp['emission']:<10.2f} | {bp['num_vehicles']:<8} | {bp['avg_dist']:<10.2f}"
+            print(line_bp)
+            f.write(line_bp + "\n")
+            
+            # Print GA row
+            ga = r['ga']
+            line_ga = f"{r['scale']:<6} | {'GA':<6} | {ga['total_cost']:<10.2f} | {ga['time_sec']:<10.2f} | {ga['emission']:<10.2f} | {ga['num_vehicles']:<8} | {ga['avg_dist']:<10.2f}"
+            print(line_ga)
+            f.write(line_ga + "\n")
+            
+            # Separator
+            print("-" * 80)
+            f.write("-" * 80 + "\n")
     
     print(f"\nResults saved to {output_file}")
 

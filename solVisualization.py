@@ -3,7 +3,13 @@ from matplotlib import pyplot as plt
 from route import Route
 from paramsVRP import ParamsVRP
 
-matplotlib.use('TkAgg')  # 或者尝试 'Agg'
+# 自动检测环境或默认使用 Agg 后端（适用于服务器/无头环境）
+try:
+    import tkinter
+    matplotlib.use('TkAgg')
+except ImportError:
+    matplotlib.use('Agg')
+# 或者如果你确定只在服务器跑，直接写: matplotlib.use('Agg')
 
 def solVis(user_param, routes, sol_time, opt_cost, dataset_name, POPOUT=False, save_path=None):
     """

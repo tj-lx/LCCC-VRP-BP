@@ -10,8 +10,9 @@ We address the **Low-Carbon Cold Chain Vehicle Routing Problem with Soft Time Wi
 
 *   **Complex Cost Model**: Comprehensively considers fuel consumption, carbon tax, fresh cargo loss (linear approximation), soft time window penalties, and door opening/closing refrigeration costs.
 *   **Exact Algorithm**: Implements a Branch-and-Price framework based on **Column Generation** and **ESPPRC** (Elementary Shortest Path Problem with Resource Constraints).
+*   **Heuristic Algorithm**: Includes a **Genetic Algorithm (GA)** for large-scale instances and performance comparison.
 *   **Efficient Solving**: Capable of finding the theoretical optimal solution (Integer Optimal) for benchmark instances like Solomon C101/R101 within seconds.
-*   **Visualization**: Includes a complete route visualization module to intuitively display delivery routes.
+*   **Visualization**: Includes a complete route visualization module to intuitively display delivery routes. Supports headless environments (server-side plotting).
 
 ## Requirements
 
@@ -19,7 +20,7 @@ We address the **Low-Carbon Cold Chain Vehicle Routing Problem with Soft Time Wi
 *   **Gurobi Optimizer**: This project uses Gurobi as the LP solver for the Master Problem. You need a valid Gurobi license (Academic or Commercial).
 *   Python packages listed in `requirements.txt`:
     *   `numpy`
-    *   `matplotlib`
+    *   `matplotlib` (Backend auto-switching supported)
     *   `gurobipy`
 
 ## Installation
@@ -47,15 +48,15 @@ python main.py
 ```
 *By default, this runs the algorithm on `dataset/R101.txt` and displays the result.*
 
-### 2. Run Sensitivity Analysis
-To analyze the impact of **Carbon Tax**, **Time Windows**, **Freshness Price**, and **Decay Rate**:
+### 2. Run Sensitivity Analysis (B&P vs GA)
+To analyze the impact of **Carbon Tax**, **Time Windows**, **Freshness Price**, and **Decay Rate**, comparing Branch-and-Price with Genetic Algorithm:
 
 ```bash
 python experiment_sensitivity.py
 ```
-*Results (tables and plots) will be saved in the `output/` directory.*
+*Results (tables and plots for both algorithms) will be saved in the `output/` directory.*
 
-### 3. Run Scale Experiments
+### 3. Run Scale Experiments (B&P vs GA)
 To test the algorithm's performance on different problem scales (e.g., N=25, 50, 100):
 
 ```bash
@@ -66,14 +67,17 @@ python experiment_scale.py
 ## Project Structure
 
 *   `main.py`: Entry point for single-instance runs.
-*   `columnGen.py`: Implements the Column Generation loop (Master Problem).
+*   `columnGen.py`: Implements the Column Generation loop (Master Problem). Optimized with time limits and efficient column management.
 *   `SPPRC.py`: Solves the Pricing Subproblem (Labeling Algorithm).
 *   `branchBound.py`: Implements the Branch-and-Bound tree search.
+*   `heuristicGA.py`: Implements the Genetic Algorithm (GA) with Split Procedure.
 *   `paramsVRP.py`: Data structures and parameter loading (Cost functions defined here).
 *   `route.py`: Route class definition.
-*   `solVisualization.py`: Visualization utilities using Matplotlib.
-*   `experiment_*.py`: Scripts for batch experiments and sensitivity analysis.
+*   `solVisualization.py`: Visualization utilities using Matplotlib (supports local and server/headless modes).
+*   `experiment_*.py`: Scripts for batch experiments and sensitivity analysis (integrated B&P vs GA).
 *   `dataset/`: Contains Solomon benchmark instances and other test data.
+*   `fig/` & `output/`: Directories for storing results (now tracked in git).
+
 
 ## References & Acknowledgements
 
